@@ -60,20 +60,20 @@ module EvilSeed
     private
 
     def dump!
-      puts "#{association_path}.#{relation.name}"
+      puts "VISITING #{association_path}.#{relation.name}" if ENV['TRACE_PATHS']
       if identifiers.present?
         # Don't use AR::Base#find_each as we will get error on Oracle if we will have more than 1000 ids in IN statement
         identifiers.in_groups_of(MAX_IDENTIFIERS_IN_IN_STMT).each do |ids|
           fetch_attributes(relation.where(search_key => ids.compact)).each do |attributes|
             next unless check_limits!
-            dump_record!(attributes)
+            dump_record!(attributes.with_indifferent_access)
           end
         end
       else
         relation.in_batches do |relation|
           fetch_attributes(relation).each do |attributes|
             next unless check_limits!
-            dump_record!(attributes)
+            dump_record!(attributes.with_indifferent_access)
           end
         end
       end
@@ -144,8 +144,11 @@ module EvilSeed
 
     def setup_belongs_to_reflections
       model_class.reflect_on_all_associations(:belongs_to).reject do |reflection|
-        next false if reflection.options[:polymorphic] # TODO: Add support for polymorphic belongs_to
+        next false if reflection.options[:polymorphic] # TODO: if there are polymorphic relations, pls add them as root!
         excluded = root.excluded?("#{association_path}.#{reflection.name}") || reflection.name == inverse_reflection
+        if ENV['TRACE_EXCLUSIONS'] && excluded
+          puts "EXCLUDING BELONGS #{association_path}.#{reflection.name}"
+        end
         if excluded
           nullify_columns << reflection.foreign_key unless model_class.attribute_names.include?(reflection.foreign_key)
         else
@@ -159,6 +162,9 @@ module EvilSeed
     # This method returns only direct has_one and has_many reflections. For HABTM it returns intermediate has_many
     def setup_has_many_reflections
       model_class._reflections.select do |_reflection_name, reflection|
+        if ENV['TRACE_EXCLUSIONS'] && root.excluded?("#{association_path}.#{reflection.name}")
+          puts "EXCLUDING HAS #{association_path}.#{reflection.name}"
+        end
         next false if model_class.primary_key.nil?
         next false if reflection.is_a?(ActiveRecord::Reflection::ThroughReflection)
         %i[has_one has_many].include?(reflection.macro) && !root.excluded?("#{association_path}.#{reflection.name}")
@@ -166,4 +172,3 @@ module EvilSeed
     end
   end
 end
-
