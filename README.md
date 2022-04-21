@@ -186,3 +186,14 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/palkan
 ## License
 
 The gem is available as open source under the terms of the [MIT License](http://opensource.org/licenses/MIT).
+
+
+CUSTOMIZATIONS:
+    ENV['TRACE_PATHS'] = 'true' <- enables node traversing log
+    ENV['TRACE_EXCLUSIONS'] = 'true' <- enables node exclusion log
+    ```ruby
+    config.anonymize("Node") do |node|
+        # attrs grant access to whole node properties and permits any type of modification, so that you can contextualy modify datas
+        node.property{ |attrs| !attrs['property'].nil? && Faker::Number.number(digits: attrs['property'].length) }
+    end
+    ```
